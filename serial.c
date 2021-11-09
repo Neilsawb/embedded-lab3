@@ -58,28 +58,53 @@ void uart_putstr(char *str)
 {
         unsigned char j=0;
 
-        while (str[j]!=0)               /* Send string till null */
+        while (str[j]!=0)  /* Send string till null */
         {
                 uart_putchar(str[j], NULL);
                 j++;
         }
 }
 
-bool checkDebounce(bool debounceOngoing) {
-	
-	if (PINB & (1<<PB4)) {
-		PORTB |= (1<<PB3); // led on PB3
-		debounceOngoing = true;
-		//uart_putstr("debounce ongoing is true\r\n");
-		return debounceOngoing;
-	} else {
-		//if (!PINB && (1<<PB4)) {  // Not true.
-		PORTB &= ~(1<<PB3); // led off on PB3
-		//uart_putstr("button released now\r\n");
-		if (debounceOngoing == true) {
-			buttonReleased = true;	
-			uart_putstr("button released is true\r\n");
-		}
-	}
+void fastPWMmode(void) {
+    // Part2 define Fast PWM mode.
+    // WGM21=1, WGM20=1 Fast PWM mode 3 with non inverting. (COM2A1)
+
+     TCCR2A |= (1<<COM2A1) | (1<<COM2A0) | (1<<WGM21) | (1<<WGM20);
+
+    //  16MHz (clock cycle) /64(prescaler) = 250,000Hz
+    // OCR2A = 16000000/(256*64)=16,384 => 976.
+
+    //  16MHz (clock cycle) /1024 (prescaler) = 15.625Hz
+    // 15.625/((1/10)*1000) = 156,25 (OCR0A = 156)
+    //TCCR0B |= (1 << CS02)| (0 << CS01) | (1 << CS00); // Prescaler = 1024.
+    TCCR2B |= (1 << CS01) | (1 << CS00); // Prescaler = 64.
+
+    TCNT0 = 0;
+    TCNT2 = 0;
+
+    OCR2A = 255 ; // (25) 10% of duty cycle. (255) 100%.
+
+    OCR0A = 156;
+    // OCR0A = In Fast PWM mode, the counter is incremented
+    // until the counter value matches the TOP value. The
+    // counter is then cleared at the following timer clock cycle.
+ }
+
+void init_adc0() {
+	ADCSRA |= 1<<ADEN;  //Enables ADC
+	ADCSRA |= 1<<ADPS1 | 1<<ADPS0;  //Sets ADC Prescalar as 8, 
+	ADCSRA &= ~(1<<ADPS2);
+	ADCSRA |= 1<<ADIE | 1<<ADSC ;  //Enables ADC interupt and Start the conversion
+	ADMUX |= 1<<ADLAR | 1<<REFS0; // ADLAR=1 for left adjusted result and REFS0=1 with REFS1=0 to use 
+	ADMUX &= ~(1<<MUX0); // define ADMUX to 0000 for ADC0.  
+	ADMUX &= ~(1<<MUX1);
+	ADMUX &= ~(1<<MUX2);
+	ADMUX &= ~(1<<MUX3);
+											// Vcc as reference voltage
+	ADCSRB |= (1 << ADTS0) | (1 << ADTS1);	// Timer/Counter0 Compare Match A 
+	DIDR0 = (1 << ADC0D); // disable digital input buffer
 }
 
+void startConversion () {
+	ADCSRA |= (1 <<ADSC);
+}

@@ -9,6 +9,9 @@ int uart_putchar(char chr, FILE *stream);
 char uart_getchar(void);
 bool checkDebounce(bool debounceOngoing);
 void uart_putstr(char *str);
+void init_adc0();
+void fastPWMmode(void);
+void startConversion();
 
 #endif
 
